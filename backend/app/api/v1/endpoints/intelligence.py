@@ -10,8 +10,15 @@ from pydantic import BaseModel
 from app.db.database import get_db
 from app.services.matching import smart_match_suppliers
 from app.services.routing import optimize_route
+import httpx
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# ML Service Configuration
+ML_SERVICE_URL = "http://localhost:8001"
+ML_SERVICE_TIMEOUT = 10.0  # seconds
 
 
 # ============================================================================
@@ -98,28 +105,56 @@ def optimize_logistics_route(
 # DEMAND FORECASTING (AI)
 # ============================================================================
 
-@router.get("/forecast")
-def get_demand_forecast(
-    crop: str = Query(..., description="Crop ID to forecast"),
-    region: str = Query("delhi-ncr", description="Region for forecast"),
-    horizon_days: int = Query(21, description="Forecast horizon in days"),
-    db: Session = Depends(get_db)
+# ============================================================================
+# DEMAND FORECASTING (AI) - ML Model Integration
+# ============================================================================
+
+async def call_ml_service(
+    commodity: str,
+    location: str,
+    forecast_days: int
+) -> Optional[dict]:
+    """
+    Call ML service for demand prediction.
+    Returns None if service is unavailable.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=ML_SERVICE_TIMEOUT) as client:
+            response = await client.post(
+                f"{ML_SERVICE_URL}/api/v1/predict-demand",
+                json={
+                    "commodity": commodity,
+                    "location_query": location,
+                    "forecast_days": forecast_days,
+                    "language": "en"
+                }
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(f"ML service returned status {response.status_code}")
+                return None
+                
+    except httpx.ConnectError:
+        logger.warning("ML service not available - using fallback forecast")
+        return None
+    except Exception as e:
+        logger.error(f"Error calling ML service: {e}")
+        return None
+
+
+def generate_fallback_forecast(
+    crop: str,
+    region: str,
+    horizon_days: int
 ):
     """
-    AI Demand Forecasting
-    
-    Predicts future demand for crops using:
-    - Historical order data
-    - Seasonal patterns
-    - Regional consumption trends
-    
-    Returns time series forecast with confidence intervals
+    Fallback forecast when ML service is unavailable.
+    Uses simple time-series prediction.
     """
     from datetime import date, timedelta
     import random
-    
-    # Simple forecasting model (can be replaced with ML model)
-    # This generates realistic demo data based on historical patterns
     
     base_demand = {
         "tomato": 2100,
@@ -129,19 +164,13 @@ def get_demand_forecast(
         "cauliflower": 1200
     }.get(crop.lower(), 1000)
     
-    # Generate forecast series
     today = date.today()
     forecast_series = []
     
     for i in range(0, horizon_days + 1, 3):
         forecast_date = today + timedelta(days=i)
-        
-        # Add growth trend (2% per week)
         growth_factor = 1 + (i / 7) * 0.02
-        
-        # Add seasonal variation
         seasonal_factor = 1 + 0.1 * random.uniform(-1, 1)
-        
         predicted_demand = base_demand * growth_factor * seasonal_factor
         
         forecast_series.append({
@@ -153,7 +182,7 @@ def get_demand_forecast(
         })
     
     peak_demand = max(forecast_series, key=lambda x: x["predicted_demand_kg"])
-    current_supply_kg = base_demand * 0.87  # Assume 87% supply coverage
+    current_supply_kg = base_demand * 0.87
     supply_gap = peak_demand["predicted_demand_kg"] - current_supply_kg
     
     return {
@@ -163,18 +192,116 @@ def get_demand_forecast(
         "predicted_demand_kg": peak_demand["predicted_demand_kg"],
         "current_supply_kg": round(current_supply_kg, 0),
         "supply_gap_kg": round(supply_gap, 0) if supply_gap > 0 else 0,
-        "confidence_score": 94.8,
+        "confidence_score": 85.0,
         "trend_percent": 19,
         "forecast_horizon_days": horizon_days,
         "series": forecast_series,
+        "ml_service_status": "unavailable",
         "recommendation": {
-            "en": f"Secure approximately {round(supply_gap, 0)} kg additional {crop} supply to avoid projected shortage.",
-            "hi": f"संभावित कमी से बचने के लिए लगभग {round(supply_gap, 0)} किग्रा अतिरिक्त {crop} की आपूर्ति सुरक्षित करें।"
-        } if supply_gap > 0 else {
-            "en": "Current supply is sufficient to meet forecasted demand.",
-            "hi": "वर्तमान आपूर्ति पूर्वानुमानित मांग को पूरा करने के लिए पर्याप्त है।"
+            "en": f"Secure approximately {round(supply_gap, 0)} kg additional {crop} supply to avoid projected shortage." if supply_gap > 0 else "Current supply is sufficient to meet forecasted demand.",
+            "hi": f"संभावित कमी से बचने के लिए लगभग {round(supply_gap, 0)} किग्रा अतिरिक्त {crop} की आपूर्ति सुरक्षित करें।" if supply_gap > 0 else "वर्तमान आपूर्ति पूर्वानुमानित मांग को पूरा करने के लिए पर्याप्त है।"
         }
     }
+
+
+def transform_ml_response(ml_data: dict, crop: str, region: str, horizon_days: int) -> dict:
+    """
+    Transform ML service response to match frontend expectations.
+    """
+    from datetime import date, timedelta
+    
+    # Extract key metrics
+    predicted_demand = ml_data.get("predicted_demand_kg", 0)
+    predicted_supply = ml_data.get("predicted_supply_kg", 0)
+    gap_kg = ml_data.get("gap_kg", 0)
+    confidence = ml_data.get("confidence_score", 95.0)
+    
+    # Generate time series for frontend chart
+    today = date.today()
+    series = []
+    
+    # If ML service provides series data, use it
+    if "series" in ml_data:
+        series = ml_data["series"]
+    else:
+        # Generate series based on ML prediction
+        daily_demand = predicted_demand / horizon_days
+        for i in range(0, horizon_days + 1, 3):
+            forecast_date = today + timedelta(days=i)
+            growth = 1 + (i / horizon_days) * 0.15
+            demand_value = daily_demand * horizon_days * growth
+            
+            series.append({
+                "date": forecast_date.isoformat(),
+                "day_offset": i,
+                "predicted_demand_kg": round(demand_value, 0),
+                "confidence_lower": round(demand_value * 0.92, 0),
+                "confidence_upper": round(demand_value * 1.08, 0)
+            })
+    
+    # Extract recommendation
+    recommendation = ml_data.get("recommendation", {})
+    if isinstance(recommendation, str):
+        recommendation = {"en": recommendation, "hi": recommendation}
+    
+    return {
+        "success": True,
+        "crop": crop,
+        "region": region,
+        "predicted_demand_kg": round(predicted_demand, 0),
+        "current_supply_kg": round(predicted_supply, 0),
+        "supply_gap_kg": round(gap_kg, 0) if gap_kg > 0 else 0,
+        "confidence_score": round(confidence, 1),
+        "trend_percent": round((gap_kg / predicted_supply * 100) if predicted_supply > 0 else 0, 1),
+        "forecast_horizon_days": horizon_days,
+        "series": series,
+        "ml_service_status": "active",
+        "ml_model_info": {
+            "model_type": "LightGBM",
+            "district_resolved": ml_data.get("location", {}).get("model_district", region),
+            "weather_impact": ml_data.get("weather", {}).get("description", "Normal"),
+            "festival_impact": ml_data.get("festival", {}).get("name", "None")
+        },
+        "recommendation": recommendation
+    }
+
+
+@router.get("/forecast")
+async def get_demand_forecast(
+    crop: str = Query(..., description="Crop ID to forecast"),
+    region: str = Query("delhi-ncr", description="Region for forecast"),
+    horizon_days: int = Query(21, description="Forecast horizon in days"),
+    db: Session = Depends(get_db)
+):
+    """
+    AI Demand Forecasting with ML Model Integration
+    
+    This endpoint integrates with the ML service (LightGBM model) for advanced predictions.
+    Features:
+    - Real ML model trained on 24 years of mandi data
+    - Weather impact analysis
+    - Festival and seasonal adjustments
+    - Location-specific predictions
+    - Automatic fallback if ML service is unavailable
+    
+    Returns time series forecast with confidence intervals.
+    """
+    
+    # Try to get prediction from ML service
+    ml_response = await call_ml_service(
+        commodity=crop,
+        location=region,
+        forecast_days=horizon_days
+    )
+    
+    if ml_response and ml_response.get("status") == "success":
+        # ML service is available - transform and return response
+        logger.info(f"ML forecast for {crop} in {region}: SUCCESS")
+        return transform_ml_response(ml_response, crop, region, horizon_days)
+    else:
+        # ML service unavailable - use fallback
+        logger.info(f"ML forecast for {crop} in {region}: Using fallback")
+        return generate_fallback_forecast(crop, region, horizon_days)
 
 
 # ============================================================================
