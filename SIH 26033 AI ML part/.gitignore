@@ -1,0 +1,6 @@
+__pycache__
+.env
+onion.csv
+tomato.csv
+wheat.csv
+potato.csv
