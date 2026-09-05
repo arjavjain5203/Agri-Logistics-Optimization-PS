@@ -1,0 +1,230 @@
+{
+  "summary": {
+    "total_tests": 34,
+    "passed": 22,
+    "failed": 10,
+    "warnings": 2
+  },
+  "phases": {
+    "Phase 1.1": [
+      {
+        "testName": "Landing Page Loads",
+        "status": "PASS",
+        "details": "Loaded in 2944ms"
+      },
+      {
+        "testName": "Title Tag",
+        "status": "PASS",
+        "details": "Title: \"KrishiFlow AI — From Farm to Demand, Intelligently\""
+      },
+      {
+        "testName": "Hero Carousel / Headline",
+        "status": "PASS",
+        "details": "Hero text displayed"
+      },
+      {
+        "testName": "Language Toggle (Hindi)",
+        "status": "PASS",
+        "details": "Switched to Hindi, confirmed Hindi headline"
+      },
+      {
+        "testName": "Language Toggle (English)",
+        "status": "PASS",
+        "details": "Switched back to English, confirmed English headline"
+      },
+      {
+        "testName": "Features & How It Works",
+        "status": "FAIL",
+        "details": "Demand Intelligence & Supply Aggregation sections found"
+      },
+      {
+        "testName": "Impact Statistics",
+        "status": "PASS",
+        "details": "Metrics (46% income, 78% waste reduction) displayed"
+      },
+      {
+        "testName": "Footer Links",
+        "status": "PASS",
+        "details": "Footer branding and links present"
+      },
+      {
+        "testName": "Mobile Responsiveness (375px)",
+        "status": "PASS",
+        "details": "Scroll width: 414px"
+      }
+    ],
+    "Phase 1.2": [
+      {
+        "testName": "Login Page Accessible",
+        "status": "PASS",
+        "details": "Login portal rendered"
+      },
+      {
+        "testName": "Persona Selection Buttons",
+        "status": "FAIL",
+        "details": "Buyer (Priya) and Farmer (Ramesh) cards present"
+      },
+      {
+        "testName": "Farmer Login Redirect",
+        "status": "FAIL",
+        "details": "Navigated to http://localhost:5173/login"
+      }
+    ],
+    "Phase 2.1": [
+      {
+        "testName": "Farmer Dashboard Welcome",
+        "status": "FAIL",
+        "details": "Farmer profile and greeting displayed"
+      },
+      {
+        "testName": "Farmer Statistics",
+        "status": "PASS",
+        "details": "Metrics cards rendered"
+      }
+    ],
+    "Phase 2.2": [
+      {
+        "testName": "Farmer Produce Management Page",
+        "status": "FAIL",
+        "details": "Produce inventory view active"
+      },
+      {
+        "testName": "Add Produce Modal & Required Fields",
+        "status": "FAIL",
+        "details": "Add Produce modal displays Crop, Quantity, Price, Grade fields"
+      }
+    ],
+    "Phase 2.3": [
+      {
+        "testName": "Farmer Orders Page",
+        "status": "PASS",
+        "details": "Farmer orders rendered"
+      }
+    ],
+    "Phase 2.4": [
+      {
+        "testName": "ML Service Status (\"active\")",
+        "status": "PASS",
+        "details": "ML service status badge visible"
+      },
+      {
+        "testName": "Confidence Score Display",
+        "status": "WARN",
+        "details": "Model confidence score displayed"
+      },
+      {
+        "testName": "Weather & Regional Insights",
+        "status": "PASS",
+        "details": "Real-time weather and regional context shown"
+      },
+      {
+        "testName": "Predicted Demand Value",
+        "status": "WARN",
+        "details": "Predicted demand value shows 0 kg due to backend mapping bug!"
+      }
+    ],
+    "Phase 3.1": [
+      {
+        "testName": "Buyer Dashboard Loads",
+        "status": "PASS",
+        "details": "Buyer dashboard rendered"
+      }
+    ],
+    "Phase 3.2": [
+      {
+        "testName": "Procurement Request Form",
+        "status": "FAIL",
+        "details": "Procurement form inputs present"
+      }
+    ],
+    "Phase 3.3": [
+      {
+        "testName": "Smart Matching Page",
+        "status": "PASS",
+        "details": "Multi-criteria matching scores rendered"
+      }
+    ],
+    "Phase 3.4": [
+      {
+        "testName": "Marketplace Catalog",
+        "status": "PASS",
+        "details": "Produce items listed with prices"
+      }
+    ],
+    "Phase 4.1": [
+      {
+        "testName": "Order Tracking Page",
+        "status": "PASS",
+        "details": "Order tracker with timeline rendered"
+      }
+    ],
+    "Phase 4.2": [
+      {
+        "testName": "Smart Logistics & Route Optimization",
+        "status": "PASS",
+        "details": "Route optimization map & metrics rendered"
+      }
+    ],
+    "Phase 4.3": [
+      {
+        "testName": "Price Transparency Comparison",
+        "status": "FAIL",
+        "details": "Fair price vs Mandi benchmark comparison rendered"
+      }
+    ],
+    "Phase 4.4": [
+      {
+        "testName": "Impact Dashboard Metrics",
+        "status": "FAIL",
+        "details": "Impact metrics & ESG analytics rendered"
+      }
+    ],
+    "Phase 4.5": [
+      {
+        "testName": "AI Assistant Modal Opens",
+        "status": "FAIL",
+        "details": "Floating AI assistant triggered"
+      },
+      {
+        "testName": "AI Query: \"What crops are in high de...\"",
+        "status": "PASS",
+        "details": "Query submitted and assistant response generated"
+      },
+      {
+        "testName": "AI Query: \"How do I add new produce?...\"",
+        "status": "PASS",
+        "details": "Query submitted and assistant response generated"
+      },
+      {
+        "testName": "AI Query: \"What is my match score?...\"",
+        "status": "PASS",
+        "details": "Query submitted and assistant response generated"
+      },
+      {
+        "testName": "AI Query: \"Show me price trends for ...\"",
+        "status": "PASS",
+        "details": "Query submitted and assistant response generated"
+      }
+    ]
+  },
+  "console_logs": {
+    "errors": [],
+    "warnings": [],
+    "logs": []
+  },
+  "network_calls": [
+    {
+      "url": "http://localhost:8000/api/intelligence/forecast?crop=tomato&region=Noida&horizon_days=21",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:8000/api/intelligence/forecast?crop=tomato&region=Noida&horizon_days=21",
+      "status": 200,
+      "statusText": "OK"
+    }
+  ],
+  "performance": {
+    "landingPageLoadMs": 2944
+  }
+}

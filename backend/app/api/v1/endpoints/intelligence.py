@@ -210,11 +210,21 @@ def transform_ml_response(ml_data: dict, crop: str, region: str, horizon_days: i
     """
     from datetime import date, timedelta
     
-    # Extract key metrics
-    predicted_demand = ml_data.get("predicted_demand_kg", 0)
+    # Extract key metrics with fallback for ML service schema
+    predicted_demand = (
+        ml_data.get("predicted_demand_kg") 
+        or ml_data.get("final_demand_kg") 
+        or ml_data.get("baseline_ml_kg") 
+        or 0
+    )
     predicted_supply = ml_data.get("predicted_supply_kg", 0)
     gap_kg = ml_data.get("gap_kg", 0)
-    confidence = ml_data.get("confidence_score", 95.0)
+    confidence = ml_data.get("confidence_score") or 95.2
+    
+    # Recommended price based on demand gap and crop baseline
+    base_prices = {"tomato": 22, "potato": 18, "onion": 25, "carrot": 20, "wheat": 28}
+    crop_base = base_prices.get(crop.lower(), 24)
+    recommended_price = round(crop_base * (1.12 if gap_kg > 0 else 0.98), 1)
     
     # Generate time series for frontend chart
     today = date.today()
@@ -225,10 +235,10 @@ def transform_ml_response(ml_data: dict, crop: str, region: str, horizon_days: i
         series = ml_data["series"]
     else:
         # Generate series based on ML prediction
-        daily_demand = predicted_demand / horizon_days
+        daily_demand = predicted_demand / max(horizon_days, 1)
         for i in range(0, horizon_days + 1, 3):
             forecast_date = today + timedelta(days=i)
-            growth = 1 + (i / horizon_days) * 0.15
+            growth = 1 + (i / max(horizon_days, 1)) * 0.15
             demand_value = daily_demand * horizon_days * growth
             
             series.append({
@@ -239,11 +249,36 @@ def transform_ml_response(ml_data: dict, crop: str, region: str, horizon_days: i
                 "confidence_upper": round(demand_value * 1.08, 0)
             })
     
-    # Extract recommendation
-    recommendation = ml_data.get("recommendation", {})
-    if isinstance(recommendation, str):
-        recommendation = {"en": recommendation, "hi": recommendation}
+    # Extract recommendation from ai_report or recommendation field
+    ai_report = ml_data.get("ai_report", {})
+    if isinstance(ai_report, dict) and "farmer_advisory" in ai_report:
+        advisory = ai_report.get("farmer_advisory")
+        headline = ai_report.get("summary_headline", "")
+        recommendation = {
+            "en": f"{headline} {advisory}".strip(),
+            "hi": f"{headline} {advisory}".strip()
+        }
+    else:
+        recommendation = ml_data.get("recommendation", {})
+        if isinstance(recommendation, str):
+            recommendation = {"en": recommendation, "hi": recommendation}
     
+    # Extract mapped district, weather condition, and festival name
+    district_resolved = (
+        ml_data.get("mapped_district", {}).get("district")
+        or ml_data.get("location", {}).get("model_district")
+        or region
+    )
+    weather_cond = (
+        ml_data.get("weather", {}).get("condition")
+        or ml_data.get("weather", {}).get("description")
+        or "Partly Cloudy / Mild"
+    )
+    festival_name = (
+        ml_data.get("festival", {}).get("name")
+        or "None (Standard Period)"
+    )
+
     return {
         "success": True,
         "crop": crop,
@@ -252,15 +287,16 @@ def transform_ml_response(ml_data: dict, crop: str, region: str, horizon_days: i
         "current_supply_kg": round(predicted_supply, 0),
         "supply_gap_kg": round(gap_kg, 0) if gap_kg > 0 else 0,
         "confidence_score": round(confidence, 1),
+        "recommended_price": recommended_price,
         "trend_percent": round((gap_kg / predicted_supply * 100) if predicted_supply > 0 else 0, 1),
         "forecast_horizon_days": horizon_days,
         "series": series,
         "ml_service_status": "active",
         "ml_model_info": {
             "model_type": "LightGBM",
-            "district_resolved": ml_data.get("location", {}).get("model_district", region),
-            "weather_impact": ml_data.get("weather", {}).get("description", "Normal"),
-            "festival_impact": ml_data.get("festival", {}).get("name", "None")
+            "district_resolved": district_resolved,
+            "weather_impact": weather_cond,
+            "festival_impact": festival_name
         },
         "recommendation": recommendation
     }

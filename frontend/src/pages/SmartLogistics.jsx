@@ -128,7 +128,7 @@ export const SmartLogistics = () => {
               const isLast = idx === MOCK_LOGISTICS_ROUTE.stops.length - 1;
 
               return (
-                <div key={stop.id} className="relative flex items-start gap-4">
+                <div key={stop.step || stop.id || idx} className="relative flex items-start gap-4">
                   {/* Bauhaus Node Circle */}
                   <div
                     style={
