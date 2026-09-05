@@ -12,7 +12,8 @@ import {
   getSuggestedQuestions,
   getQuickActions,
   getAssistantResponse,
-} from '../services/mockAssistant';
+  clearAssistantSession,
+} from '../services/geminiAssistant';
 
 export const AIChatPanel = ({ isOpen, onClose, currentRole = 'buyer' }) => {
   const { language } = useLanguage();
@@ -116,6 +117,7 @@ export const AIChatPanel = ({ isOpen, onClose, currentRole = 'buyer' }) => {
   };
 
   const handleClearChat = () => {
+    clearAssistantSession(); // Clear backend session memory
     setMessages([
       {
         ...initialWelcomeMessage,

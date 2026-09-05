@@ -17,17 +17,17 @@ from app.api.v1 import api_router
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    print("🚀 Starting KrishiFlow AI Backend...")
-    print(f"📊 Database: {settings.DATABASE_URL.split('@')[-1]}")
+    print("[*] Starting KrishiFlow AI Backend...")
+    print(f"[DB] Database: {settings.DATABASE_URL.split('@')[-1]}")
     
     # Create tables
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created")
+    print("[OK] Database tables created")
     
     yield
     
     # Shutdown
-    print("🛑 Shutting down KrishiFlow AI Backend...")
+    print("[*] Shutting down KrishiFlow AI Backend...")
 
 
 app = FastAPI(
